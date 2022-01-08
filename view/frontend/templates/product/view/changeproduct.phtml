@@ -1,0 +1,303 @@
+<?php
+/**
+ * Copyright © OnlineSupply.com All rights reserved.
+ * See COPYING.txt for license details.
+ */
+ 
+/**
+ * Get product data
+ */
+$viewModel = $block->getData('viewModel');
+// print_r(get_class_methods($viewModel));
+$calculatorLogic = $block->getData('calculatorLogic');
+// print_r(get_class_methods($calculatorLogic));
+$prod = $block->getProduct();
+$sqftProductPrice = $prod->getFinalPrice();
+$prodSku = $prod->getsku();
+$sqftProductName = $prod->getName();
+$sqftProductId = $prod->getId();
+$sqftPackageContainerId = $prod->getPackageContainerId();
+$sqftPackageContainerQty = $prod->getPackageContainerQty();
+
+/**
+ * Assign initial values to prevent undefined errors
+ */
+$getIdBySku = [];
+$moreProcessing = 'false';
+$isConfigurableProduct = 'false';
+$optionsArray = [];
+$hasPackageContainer = 'false';
+$containerProductPrice = 0;
+$containerProductName = 'notset';
+$hasContainer = 'false';
+$containerProductSqftUnitPrice = 0;
+
+if ($sqftPackageContainerQty > 0) { //check if $sqftPackageContainerQty
+    if ($sqftPackageContainerId > 0) {
+        
+        $hasPackageContainer = 'true';
+        $containerProduct_ = $viewModel->getLoadProduct($sqftPackageContainerId);
+        $containerProductSku = $containerProduct_->getSku();
+        $prodSku = $containerProductSku;
+        
+        foreach ($containerProduct_->getOptions() as $options) {
+            $optionData = $options->getValues();
+            foreach ($optionData as $data) {
+                $customizableOptions = $data->getData();
+                // print_r($customizableOptions);
+                $OptionTypeId = $data->getOptionTypeId();
+                $OptionId  = $data->getOptionId();
+                $optionsArray[] =
+                [
+                    'title' => $customizableOptions['title'],
+                    'optionId' => $data->getOptionId(),
+                    'optionTypeId' => $data->getOptionTypeId(),
+                    'sku' => $customizableOptions['sku']
+                ];
+            }
+        }
+    //   Check if product is ConfigurableProduct
+        if ($prod->getTypeId() == \Magento\ConfigurableProduct\Model\Product\Type\Configurable::TYPE_CODE) {
+            $isConfigurableProduct = 'true';
+            $configProduct = $viewModel->getLoadProduct($sqftProductId);
+            $_children = $configProduct->getTypeInstance()->getUsedProducts($configProduct);
+            foreach ($_children as $child) {
+                $getIdBySku[$child->getSku()] = $child->getId();
+            }
+        } else {
+            $isConfigurableProduct = 'false';
+        }
+    } // If packageContainerId is valid ?>
+
+ <?php
+} else { // done check if $sqftPackageContainerQty
+    $sqftPackageContainerQty = 0;
+}
+
+if ($sqftPackageContainerQty < 1) {
+    $moreProcessing = 'true';
+}
+
+if ($sqftPackageContainerId > 0) {
+    $hasContainer = 'true';
+    $containerProd = $viewModel->getLoadProduct($sqftPackageContainerId);
+    $containerProductPrice = $containerProd->getFinalPrice();
+    $containerProductName = $containerProd->getName();
+    $containerProductSqftUnitPrice =  round($containerProductPrice / $sqftPackageContainerQty, 2);
+} else {
+     $containerProductName = $sqftProductName;
+     $containerProductPrice = $sqftProductPrice;
+    if ($moreProcessing) {
+        $containerProductSqftUnitPrice = 0;
+    } else {
+        $containerProductSqftUnitPrice = round($containerProductPrice / $sqftPackageContainerQty, 2);
+    }
+}
+
+/**
+ * getIdBySku applies for Configurable products-(Must be json encoded even if empty)
+ */
+$getIdBySku = json_encode($getIdBySku);
+$optionsArray = json_encode($optionsArray);
+
+
+?>
+<span id="mage_hasPackageContainer" data-mage-hasPackageContainer=
+"<?= $escaper->escapeHtml($hasPackageContainer); ?>"
+></span>
+<span id="mage_optionsArray" data-mage-optionsArray=
+"<?= $escaper->escapeHtml($optionsArray); ?>"
+></span>
+<span id="mage_isConfigurableProduct" data-mage-isConfigurableProduct=
+"<?= $escaper->escapeHtml($isConfigurableProduct); ?>"
+></span>
+<span id="mage_getIdBySku" data-mage-getIdBySku=
+"<?= $escaper->escapeHtml($getIdBySku); ?>"
+></span>
+<span id="mage_prodSku" data-mage-prodSku=
+"<?= $escaper->escapeHtml($prodSku); ?>"
+></span>
+<span id="mage_productMoreProcessing" data-mage-more-processing=
+"<?= $escaper->escapeHtml($moreProcessing); ?>"
+></span>
+<span id="mage_productContainerPrice" data-mage-product-container-price=
+"<?= $escaper->escapeHtml($containerProductPrice); ?>"
+></span>
+<span id="mage_productContainerName" data-mage-container-product-name=
+"<?= $escaper->escapeHtml($containerProductName); ?>"
+></span>
+<span id="mage_productName" data-mage-product-name=
+"<?= $escaper->escapeHtml($sqftProductName); ?>"
+></span>
+<input type="hidden" id="mage_productId" data-mage-product-id=
+"<?= $escaper->escapeHtml($sqftProductId); ?>"/>
+<input type="hidden" id="sqft-hasContainer" data-mage-has-container=
+"<?= $escaper->escapeHtml($hasContainer); ?>"/>
+<input type="hidden" id="mage_packageContainerId" data-mage-package-container-id=
+"<?= $escaper->escapeHtml($sqftPackageContainerId); ?>"
+/>
+<input type="hidden" id="mage_packageContainerQty" data-mage-package-container-qty=
+"<?= $escaper->escapeHtml($sqftPackageContainerQty); ?>"
+/>
+<input type="hidden" id="mage_sqft-unit-price" data-mage-package-container-sqft-unit-price=
+"<?= $escaper->escapeHtml($containerProductSqftUnitPrice); ?>"
+<input type="hidden" id="mage_mixin-args" data-mage-mixin-args="b" value="a"/>
+
+
+
+<script>
+    
+
+
+require(['jquery'],function(jquery){
+       jQuery.ajax({
+          url: "<?= $escaper->escapeHtml($block->
+            getViewFileUrl('Ecommerce121_FlooringCalculator::js/handle-changeproduct.js')); ?>",
+          dataType: "script",
+          success: success
+        });
+        function success(){
+           console.log("done")
+        }
+    });
+</script>
+
+
+
+<?php
+ /**
+  * Copyright © Online Supply. All rights reserved.
+  * See COPYING.txt for license details.
+  */
+ 
+?>
+<?php
+/**
+ * Get the this products category to see if program should be visible.
+ *
+ * @var $block \Magento\Catalog\Block\Product\View\Attributes
+ */
+// $calculatorLogic = $block->getData('calculatorLogic');
+
+// print_r(get_class_methods($viewModel));
+$showCalc = false;
+$categories = $calculatorLogic->getProductCatagory();
+// print_r($categories);
+// echo "<br><br>";
+// echo gettype($categories);
+// echo "<br><br>";
+// echo($categories);
+if(gettype($categories) == "array"){
+    foreach ($categories as $category) {
+        if ($category == 'Bags') {
+            $showCalc = true;
+        }
+        if ($category == 'Flooring') {
+            $showCalc = true;
+        }
+        if ($category == 'Luxury Vinyl Plank and Tile') {
+            $showCalc = true;
+        }
+        if ($category == 'Waterproof Wood') {
+            $showCalc = true;
+        }
+        if ($category == 'Flooring Samples') {
+            $showCalc = false;
+        }
+    }
+}
+?>
+
+<?php if ($showCalc) { ?>
+
+
+<script>
+
+
+
+require(['jquery'],function(jquery){
+    jQuery(document).ready(function() {
+        jQuery.ajax({
+          url: "<?= $escaper->escapeHtml($block->
+            getViewFileUrl('Ecommerce121_FlooringCalculator::js/calc-main.js')); ?>",
+          dataType: "script",
+          success: success
+        });
+        
+        
+        jQuery.ajax({
+          url: "<?= $escaper->escapeHtml($block->
+            getViewFileUrl('Ecommerce121_FlooringCalculator::js/calc-math.js')); ?>",
+          dataType: "script",
+          success: success
+        });
+        
+
+            jQuery.ajax({
+          url: "<?= $escaper->escapeHtml($block->
+            getViewFileUrl('Ecommerce121_FlooringCalculator::js/sync-data.js')); ?>",
+          dataType: "script",
+          success: success
+        });
+        function success(){
+           console.log("done")
+        }
+    });
+    
+
+    
+});
+</script>
+ 
+
+<div class="j_ c_mode-length-width j_d-flex j_justify-content-start noselect">
+   <h2 class="j_ j_my-2">
+       <img alt="calculator" src="<?= $escaper->escapeHtml($block->
+            getViewFileUrl('Ecommerce121_FlooringCalculator::images/calculator-icon.svg')); ?>"/>
+        <span class="j_ j_mx-2" style="font-weight:200">How many boxes will you need?</span>
+        <span id="c_seekHistory" class="j_">
+            <span class="j_ c_history" onclick="undo();" data-sqfl-btn="undo">
+                <img alt="undo" src="<?= $escaper->escapeHtml($block->
+                    getViewFileUrl('Ecommerce121_FlooringCalculator::images/undo-icon.svg')); ?>"/>
+            </span>
+            <span class="j_ c_history"  onclick="redo();" data-sqfl-btn="redo">
+                <img alt="redo" src="<?= $escaper->escapeHtml($block->
+                    getViewFileUrl('Ecommerce121_FlooringCalculator::images/redo-icon.svg')); ?>"/>
+            </span>
+        </span>
+   </h2>
+   <div class="j_ j_d-flex j_justify-content-around j_m-auto">
+   </div>
+</div>
+<div id="c_mode-length-width-container">
+    <div id="c_formBody" class="j_ c_mode-length-width noselect">
+    </div>
+</div>
+
+<div class="j_ c_mode-length-width j_d-flex j_justify-content-between j_my-1" id="c_mode-area-add">
+    <div class="j_">
+        <button class="j_ j_btn j_btn-light j_btn-xlg j_px-3 j_mx-1" id="c_add-area-btn"
+        style="font-size:14px" onClick="newState(this);" data-input-name="area">
+            + Add Area
+        </button>
+        <button class="j_ j_btn j_btn-light j_btn-xlg j_px-3 j_mx-1" id="c_add-lxw-btn"
+        style="font-size:14px" onClick="newState(this);" data-input-name="lxw">
+            + Add LxW
+        </button
+    ></div>
+
+   <div class="j_ c_mode-length-width j_btn j_btn-xlg j_px-3 j_text-center"
+   style="font-size:14px" id="c_add-last-icon" data-input-name="addLast"  onclick="newState(this)">
+      <img src="<?= $escaper->escapeHtml($block->
+          getViewFileUrl('Ecommerce121_FlooringCalculator::images/plus-icon.svg')); ?>"/>
+   </div>
+</div>
+
+<div class="j_ j_border-bottom j_mb-4 c_mode-length-width j_d-flex j_justify-content-between">
+    <div id="c_calculate_btn" class="j_ j_btn j_btn-secondary j_px-3 j_my-4 " style="font-size:14px; width:10em"
+        onclick="syncData()" data-submit-by="calcbtn">Calculate</div>
+</div>
+  <div id="c_sqftResultBody" class="j_ noselect"></div>
+
+<?php  } ?>
+
