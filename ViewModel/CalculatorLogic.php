@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © OnlineSupply.com All rights reserved.
+ * Copyright © JustinCollins.org All rights reserved.
  * See COPYING.txt for license details.
  */
  

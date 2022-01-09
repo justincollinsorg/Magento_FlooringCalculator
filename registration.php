@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © Online Supply. All rights reserved.
+ * Copyright © JustinCollins.org. All rights reserved.
  * See COPYING.txt for license details.
  */
 \Magento\Framework\Component\ComponentRegistrar::register(
